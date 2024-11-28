@@ -1,0 +1,68 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile}
+    deploy:
+      resources:
+        limits:
+          memory: 2G # Set the maximum memory limit
+          cpus: '5.0' # Set the maximum CPU limit
+        reservations:
+          memory: 1G # Set the guaranteed memory (less than or equal to `limits.memory`)
+          cpus: '4.0' # Set the guaranteed CPU (less than or equal to `limits.cpus`)
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - APP_HOST=0.0.0.0
+      - APP_PORT=3000
+      - APP_MONGO_DATABASE_URL=mongodb://mongo:27017/pw10
+      - REDIS_HOST=redis
+    # volumes:
+    #   - .:/app  # Mount local directory to container
+    networks:
+      - app-network
+      - app-mongo-network
+    depends_on:
+      - mongo
+      - redis
+
+  mongo:
+    image: mongo:latest
+    networks:
+      - app-mongo-network
+    ports:
+      - "27017:27017"  # MongoDB port
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:latest
+    ports:
+    - "6379:6379"
+    networks:
+    - app-network
+
+  
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+  app-mongo-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
